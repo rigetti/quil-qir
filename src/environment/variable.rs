@@ -1,20 +1,6 @@
-/**
- * Copyright 2021 Rigetti Computing
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- **/
 use llvm_ir::Name;
 use quil::instruction::{Qubit, ScalarType};
+use std::fmt;
 
 /// A VariableType describes the type of a variable reference in a way that's structured for use by Quil.
 /// Is it a qubit, or is it scalar data - and in either case, is it an array of the same?
@@ -36,11 +22,52 @@ pub enum VariableDataType {
 }
 
 #[derive(Clone, Debug)]
+pub enum TupleData {
+    Name(String),
+    Qubit(Qubit),
+    Double(f64),
+    // TODO Oddly, llvm_ir defines its Constant::Int as being u64, but interpretation is actually left up to the LLVM
+    // instruction. We'll have to cross that bridge soon.
+    Integer(u64),
+}
+
+impl TupleData {
+    pub fn type_of(&self) -> String {
+        match self {
+            TupleData::Name(_) => format!("TupleData::Name"),
+            TupleData::Qubit(_) => format!("TupleData::Qubit"),
+            TupleData::Double(_) => format!("TupleData::Double"),
+            TupleData::Integer(_) => format!("TupleData::Integer"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum VariableValue {
     #[allow(dead_code)]
-    Data(ScalarType),
+    Data(TupleData),
+    QuilData(ScalarType),
+    QuilVariable(VariableType),
     Qubit(Qubit),
-    //Qubits(Vec<Qubit>),
-    Array(Vec<Name>),
-    Alias(Name),
+    Qubits(Vec<Qubit>),
+    Array(Vec<TupleData>),
+    Tuple(Vec<TupleData>),
+    Alias(String),
+    Index(String, usize),
+}
+
+impl VariableValue {
+    pub fn type_of(&self) -> String {
+        match self {
+            VariableValue::Data(_) => format!("VariableValue::"),
+            VariableValue::QuilData(_) => format!("VariableValue::QuilData"),
+            VariableValue::QuilVariable(_) => format!("VariableValue::QuilVariable"),
+            VariableValue::Qubit(_) => format!("VariableValue::Qubit"),
+            VariableValue::Qubits(_) => format!("VariableValue::Qubits"),
+            VariableValue::Array(_) => format!("VariableValue::Array"),
+            VariableValue::Tuple(_) => format!("VariableValue::Tuple"),
+            VariableValue::Alias(_) => format!("VariableValue::Alias"),
+            VariableValue::Index(_, _) => format!("VariableValue::Index"),
+        }
+    }
 }

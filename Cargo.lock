@@ -490,6 +490,7 @@ dependencies = [
  "either",
  "llvm-ir",
  "log",
+ "num-complex",
  "pyo3",
  "quil",
  "structopt",

@@ -13,9 +13,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  **/
-use llvm_ir::Module;
+use llvm_ir::{Constant, Module};
 use quil::instruction::{Instruction as QuilInstruction, ScalarType, Vector};
 
+use crate::environment::variable::{TupleData, VariableValue};
+use crate::translate::utilities::{get_f64_from_llvm_ir_float, name_to_string};
 use crate::{
     environment::{
         variable::{VariableDataType, VariableType},
@@ -39,9 +41,35 @@ pub fn translate_module(
         .get_func_by_name(entrypoint_name)
         .ok_or_else(|| TranslationError::UndefinedEntryPoint(entrypoint_name.to_string()))?;
 
+    // Prime the global environment with global (numeric) constants
+    for v in &module.global_vars {
+        let name = name_to_string(&v.name);
+        if v.is_constant {
+            if let Some(cr) = &v.initializer {
+                dbg!(&cr);
+                match cr.as_ref() {
+                    Constant::Int { value, .. } => {
+                        global_env
+                            .variables
+                            .insert(name, VariableValue::Data(TupleData::Integer(*value)));
+                    }
+                    Constant::Float(value) => {
+                        let value = get_f64_from_llvm_ir_float(value)?;
+                        global_env
+                            .variables
+                            .insert(name, VariableValue::Data(TupleData::Double(value)));
+                    }
+                    // Ignore non-numeric globals
+                    _ => {}
+                }
+            }
+        }
+    }
+
     // Entrypoint args are treated as globals. Store them in the global
     // environment...
-    function.parameters.iter().for_each(|p| {
+    for p in &function.parameters {
+        // TODO Come back to this!
         let data_type = if is_qubit_type!(p.ty) {
             VariableDataType::Qubit
         } else {
@@ -49,23 +77,20 @@ pub fn translate_module(
         };
 
         global_env.variables.insert(
-            utilities::name_to_label(entrypoint_name, &p.name),
+            utilities::prefix_name_for_label(entrypoint_name, &name_to_string(&p.name)),
             // TODO: determine correct type
-            VariableType {
+            VariableValue::QuilVariable(VariableType {
                 is_array: false,
                 data_type,
-            },
+            }),
         );
-    });
+    }
 
-    let instructions: TranslationResult<Vec<QuilInstruction>> = function
+    let mut instructions = function
         .parameters
         .iter()
         .map(|p| utilities::parameter_to_declare(p))
-        .collect();
-
-    // There must be a way to incorporate this into the above line...
-    let mut instructions = instructions?;
+        .collect::<Result<Vec<_>, _>>()?;
 
     // Recursively translate the body of the entrypoint. This will generally look like:
     //   - find a function call in body
@@ -74,11 +99,11 @@ pub fn translate_module(
     //     - recurse
     let entry_instructions = function::translate_function_body(module, &function, &mut global_env)?;
 
-    let circuits: Vec<QuilInstruction> = global_env
+    let circuits = global_env
         .circuit_definitions
         .into_iter()
         .map(|(_, v)| v)
-        .collect();
+        .collect::<Vec<_>>();
 
     // Create DECLARE instructions for all variables used
     instructions.extend(
