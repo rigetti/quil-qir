@@ -28,8 +28,6 @@ type TranslationResult<T> = std::result::Result<T, errors::TranslationError>;
 mod tests {
     use crate::translate::translate_module;
     use crate::translate::utilities::module_entrypoint;
-    use llvm_ir::function::FunctionAttribute;
-    use std::error::Error;
     use std::path::PathBuf;
 
     /// Some programs are known (and required) to translate, whereas more complex programs are not yet supported
