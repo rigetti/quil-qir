@@ -51,7 +51,7 @@ fn main() -> Result<(), TranslationError> {
                 Ok(m) => m,
                 Err(_) => return Err(TranslationError::InvalidLLVMByteCode),
             };
-            let entrypoint = module_entrypoint(&module).unwrap();
+            let entrypoint = module_entrypoint(&module).ok_or(TranslationError::NoEntryPoint)?;
             let instructions = translate::translate_module(&module, &entrypoint.name)?;
             let mut program = Program::new();
             program.instructions = instructions;
