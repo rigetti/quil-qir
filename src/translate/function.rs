@@ -256,6 +256,6 @@ fn translate_function_definition(
         name: function.name.to_owned(),
         parameters: vec![],
         qubit_variables: qubits,
-        instructions: instructions,
+        instructions,
     })
 }

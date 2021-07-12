@@ -21,7 +21,9 @@ pub enum TranslationError {
     NoEntryPoint,
     UndefinedEntryPoint(String),
     UnsupportedFunctionCall(String),
+    #[allow(dead_code)]
     UnsupportedLLVMInstruction(String),
+    #[allow(dead_code)]
     UnsupportedLLVMTerminator(String),
     UnexpectedVariableType(String),
     MissingDestinationForCall,
