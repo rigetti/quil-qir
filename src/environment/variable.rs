@@ -37,6 +37,7 @@ pub enum VariableDataType {
 
 #[derive(Clone, Debug)]
 pub enum VariableValue {
+    #[allow(dead_code)]
     Data(ScalarType),
     Qubit(Qubit),
     //Qubits(Vec<Qubit>),
