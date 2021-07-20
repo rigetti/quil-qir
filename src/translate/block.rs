@@ -46,7 +46,6 @@ pub fn translate_block(
     ))];
 
     for instruction in &block.instrs {
-        dbg!(&instruction);
         match instruction {
             // TODO These might be better placed in environment/mod.rs
             LLVMInstruction::Alloca(alloc) => {

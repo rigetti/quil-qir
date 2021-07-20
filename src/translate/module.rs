@@ -46,7 +46,6 @@ pub fn translate_module(
         let name = name_to_string(&v.name);
         if v.is_constant {
             if let Some(cr) = &v.initializer {
-                dbg!(&cr);
                 match cr.as_ref() {
                     Constant::Int { value, .. } => {
                         global_env

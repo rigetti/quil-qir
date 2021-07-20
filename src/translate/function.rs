@@ -34,7 +34,6 @@ pub fn translate_function_call(
     function: &Function,
     call: &Call,
 ) -> TranslationResult<Vec<QuilInstruction>> {
-    dbg!(&call);
     let function_name = match &call.function {
         either::Either::Right(llvm_ir::Operand::ConstantOperand(reference)) => {
             match reference.as_ref() {
@@ -161,7 +160,6 @@ pub fn translate_function_call(
             }])
         }
         "__quantum__qis__x__ctl" => {
-            dbg!(&call);
             let name = utilities::get_argument_names_from_call(call)[0].clone();
             let controls_name = match env.local.variables[&name].to_owned() {
                 VariableValue::Array(controls) => {
@@ -207,7 +205,6 @@ pub fn translate_function_call(
             }])
         }
         "__quantum__qis__m__body" => {
-            dbg!(&call);
             let qubits = utilities::get_qubits_from_call(call, &env)?;
             let target_name = name_to_string(
                 call.dest
