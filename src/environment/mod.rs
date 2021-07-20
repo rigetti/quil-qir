@@ -25,6 +25,9 @@ pub use global::GlobalEnvironment;
 pub use local::LocalEnvironment;
 pub use variable::VariableValue;
 
+use crate::environment::variable::TupleData;
+use llvm_ir::constant::Float;
+use llvm_ir::instruction::Store;
 use llvm_ir::{
     instruction::{BitCast, Load},
     Constant, Name, Operand, Type,
@@ -110,6 +113,89 @@ impl<'a> Environment<'a> {
                     }
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    pub fn store(&mut self, store: &Store) -> TranslationResult<()> {
+        let store_address = match &store.address {
+            Operand::LocalOperand { name, .. } => name_to_string(name),
+            _ => return Err(TranslationError::ExpectedLocalOperandForCall),
+        };
+        let resolved_store_address = self.resolve_alias(&store_address).ok_or_else(|| {
+            TranslationError::CannotResolveLocalVariableName(store_address.clone())
+        })?;
+        let resolved_variable_value = self
+            .local
+            .variables
+            .get(&resolved_store_address)
+            .ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableValue(resolved_store_address.clone())
+            })?
+            .clone();
+
+        match &store.value {
+            Operand::LocalOperand {
+                name: value_name, ..
+            } => {
+                let value_name = name_to_string(value_name);
+                let resolved_name = self.resolve_alias(&value_name).unwrap();
+                let resolved_value = self.local.variables.get(&resolved_name).cloned();
+                if let Operand::LocalOperand { .. } = &store.value {
+                    if let Some(target_name) = self.resolve_alias(&store_address) {
+                        if let Some(VariableValue::Index(target_array_name, _)) =
+                            self.local.variables.clone().get(&target_name)
+                        {
+                            // TODO actually use the index
+                            match self.local.variables.get_mut(target_array_name).unwrap() {
+                                VariableValue::Array(target) => {
+                                    target.push(TupleData::Name(value_name));
+                                }
+                                VariableValue::Tuple(target) => match resolved_value.unwrap() {
+                                    VariableValue::Qubit(q) => target.push(TupleData::Qubit(q)),
+                                    other => panic!("how to {:?}", other),
+                                },
+                                other => panic!("don't know what to do with {:?}", other),
+                            }
+                        }
+                    }
+                }
+            }
+            Operand::ConstantOperand(value) => match resolved_variable_value {
+                VariableValue::Index(target_name, _) => {
+                    let value = match value.as_ref() {
+                        Constant::Int { value, .. } => TupleData::Integer(*value),
+                        Constant::Float(float) => TupleData::Double(match float {
+                            Float::Single(s) => *s as f64,
+                            Float::Double(d) => *d,
+                            other => panic!("unsupported float type {:?}", other),
+                        }),
+                        other => panic!("expected Int or Float, got {:?}", other),
+                    };
+                    match self.local.variables.get_mut(&target_name).unwrap() {
+                        VariableValue::Tuple(tuple) => tuple.push(value),
+                        VariableValue::Array(array) => array.push(value),
+                        other => panic!("don't know how to store into {:?}", other),
+                    }
+                }
+                VariableValue::Data(_) => {
+                    let value = match value.as_ref() {
+                        Constant::Int { value, .. } => TupleData::Integer(*value),
+                        Constant::Float(float) => TupleData::Double(match float {
+                            Float::Single(s) => *s as f64,
+                            Float::Double(d) => *d,
+                            other => panic!("unsupported float type {:?}", other),
+                        }),
+                        other => panic!("expected Int or Float, got {:?}", other),
+                    };
+                    self.local
+                        .variables
+                        .insert(store_address, VariableValue::Data(value));
+                }
+                _ => todo!(),
+            },
+            other => panic!("unsupported store: {:?}", other),
         }
 
         Ok(())

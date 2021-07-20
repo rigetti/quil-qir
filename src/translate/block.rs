@@ -31,7 +31,6 @@ use crate::{
     },
     translate::{errors::TranslationError, function, utilities, TranslationResult},
 };
-use llvm_ir::constant::Float;
 
 /// Translate a single llvm_ir::BasicBlock into a vector of Quil instructions, also mutating the environment
 /// as needed.
@@ -75,91 +74,7 @@ pub fn translate_block(
             }
 
             LLVMInstruction::Store(store) => {
-                let store_address = match &store.address {
-                    Operand::LocalOperand { name, .. } => name_to_string(name),
-                    _ => return Err(TranslationError::ExpectedLocalOperandForCall),
-                };
-                let resolved_store_address =
-                    env.resolve_alias(&store_address).ok_or_else(|| {
-                        TranslationError::CannotResolveLocalVariableName(store_address.clone())
-                    })?;
-                let resolved_variable_value = env
-                    .local
-                    .variables
-                    .get(&resolved_store_address)
-                    .ok_or_else(|| {
-                        TranslationError::CannotResolveLocalVariableValue(
-                            resolved_store_address.clone(),
-                        )
-                    })?
-                    .clone();
-
-                match &store.value {
-                    Operand::LocalOperand {
-                        name: value_name, ..
-                    } => {
-                        let value_name = name_to_string(value_name);
-                        let resolved_name = env.resolve_alias(&value_name).unwrap().clone();
-                        let resolved_value = env.local.variables.get(&resolved_name).cloned();
-                        if let Operand::LocalOperand { .. } = &store.value {
-                            if let Some(target_name) = env.resolve_alias(&store_address) {
-                                if let Some(VariableValue::Index(target_array_name, _)) =
-                                    env.local.variables.clone().get(&target_name)
-                                {
-                                    // TODO actually use the index
-                                    match env.local.variables.get_mut(target_array_name).unwrap() {
-                                        VariableValue::Array(target) => {
-                                            target.push(TupleData::Name(value_name.clone()));
-                                        }
-                                        VariableValue::Tuple(target) => {
-                                            match resolved_value.unwrap() {
-                                                VariableValue::Qubit(q) => {
-                                                    target.push(TupleData::Qubit(q.clone()))
-                                                }
-                                                other => panic!("how to {:?}", other),
-                                            }
-                                        }
-                                        other => panic!("don't know what to do with {:?}", other),
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Operand::ConstantOperand(value) => match resolved_variable_value {
-                        VariableValue::Index(target_name, _) => {
-                            let value = match value.as_ref() {
-                                Constant::Int { value, .. } => TupleData::Integer(*value),
-                                Constant::Float(float) => TupleData::Double(match float {
-                                    Float::Single(s) => *s as f64,
-                                    Float::Double(d) => *d,
-                                    other => panic!("unsupported float type {:?}", other),
-                                }),
-                                other => panic!("expected Int or Float, got {:?}", other),
-                            };
-                            match env.local.variables.get_mut(&target_name).unwrap() {
-                                VariableValue::Tuple(tuple) => tuple.push(value),
-                                VariableValue::Array(array) => array.push(value),
-                                other => panic!("don't know how to store into {:?}", other),
-                            }
-                        }
-                        VariableValue::Data(_) => {
-                            let value = match value.as_ref() {
-                                Constant::Int { value, .. } => TupleData::Integer(*value),
-                                Constant::Float(float) => TupleData::Double(match float {
-                                    Float::Single(s) => *s as f64,
-                                    Float::Double(d) => *d,
-                                    other => panic!("unsupported float type {:?}", other),
-                                }),
-                                other => panic!("expected Int or Float, got {:?}", other),
-                            };
-                            env.local
-                                .variables
-                                .insert(store_address.clone(), VariableValue::Data(value));
-                        }
-                        _ => todo!(),
-                    },
-                    other => panic!("unsupported store: {:?}", other),
-                }
+                env.store(store)?;
             }
 
             LLVMInstruction::Load(load) => {
