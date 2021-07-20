@@ -142,22 +142,20 @@ impl<'a> Environment<'a> {
                 let value_name = name_to_string(value_name);
                 let resolved_name = self.resolve_alias(&value_name).unwrap();
                 let resolved_value = self.local.variables.get(&resolved_name).cloned();
-                if let Operand::LocalOperand { .. } = &store.value {
-                    if let Some(target_name) = self.resolve_alias(&store_address) {
-                        if let Some(VariableValue::Index(target_array_name, _)) =
-                            self.local.variables.clone().get(&target_name)
-                        {
-                            // TODO actually use the index
-                            match self.local.variables.get_mut(target_array_name).unwrap() {
-                                VariableValue::Array(target) => {
-                                    target.push(TupleData::Name(value_name));
-                                }
-                                VariableValue::Tuple(target) => match resolved_value.unwrap() {
-                                    VariableValue::Qubit(q) => target.push(TupleData::Qubit(q)),
-                                    other => panic!("how to {:?}", other),
-                                },
-                                other => panic!("don't know what to do with {:?}", other),
+                if let Some(target_name) = self.resolve_alias(&store_address) {
+                    if let Some(VariableValue::Index(target_array_name, _)) =
+                        self.local.variables.clone().get(&target_name)
+                    {
+                        // TODO actually use the index
+                        match self.local.variables.get_mut(target_array_name).unwrap() {
+                            VariableValue::Array(target) => {
+                                target.push(TupleData::Name(value_name));
                             }
+                            VariableValue::Tuple(target) => match resolved_value.unwrap() {
+                                VariableValue::Qubit(q) => target.push(TupleData::Qubit(q)),
+                                other => panic!("how to {:?}", other),
+                            },
+                            other => panic!("don't know what to do with {:?}", other),
                         }
                     }
                 }
