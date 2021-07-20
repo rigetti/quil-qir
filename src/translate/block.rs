@@ -49,6 +49,7 @@ pub fn translate_block(
     for instruction in &block.instrs {
         dbg!(&instruction);
         match instruction {
+            // TODO These might be better placed in environment/mod.rs
             LLVMInstruction::Alloca(alloc) => {
                 let dest = name_to_string(&alloc.dest);
                 let value = match alloc.allocated_type.as_ref() {
@@ -78,16 +79,19 @@ pub fn translate_block(
                     Operand::LocalOperand { name, .. } => name_to_string(name),
                     _ => return Err(TranslationError::ExpectedLocalOperandForCall),
                 };
-                let resolved_store_address = env.resolve_alias(&store_address).ok_or(
-                    TranslationError::CannotResolveLocalVariableName(store_address.clone()),
-                )?;
+                let resolved_store_address =
+                    env.resolve_alias(&store_address).ok_or_else(|| {
+                        TranslationError::CannotResolveLocalVariableName(store_address.clone())
+                    })?;
                 let resolved_variable_value = env
                     .local
                     .variables
                     .get(&resolved_store_address)
-                    .ok_or(TranslationError::CannotResolveLocalVariableValue(
-                        resolved_store_address.clone(),
-                    ))?
+                    .ok_or_else(|| {
+                        TranslationError::CannotResolveLocalVariableValue(
+                            resolved_store_address.clone(),
+                        )
+                    })?
                     .clone();
 
                 match &store.value {
@@ -97,9 +101,9 @@ pub fn translate_block(
                         let value_name = name_to_string(value_name);
                         let resolved_name = env.resolve_alias(&value_name).unwrap().clone();
                         let resolved_value = env.local.variables.get(&resolved_name).cloned();
-                        if let Operand::LocalOperand { name, ty } = &store.value {
+                        if let Operand::LocalOperand { .. } = &store.value {
                             if let Some(target_name) = env.resolve_alias(&store_address) {
-                                if let Some(VariableValue::Index(target_array_name, index)) =
+                                if let Some(VariableValue::Index(target_array_name, _)) =
                                     env.local.variables.clone().get(&target_name)
                                 {
                                     // TODO actually use the index
@@ -122,7 +126,7 @@ pub fn translate_block(
                         }
                     }
                     Operand::ConstantOperand(value) => match resolved_variable_value {
-                        VariableValue::Index(target_name, index) => {
+                        VariableValue::Index(target_name, _) => {
                             let value = match value.as_ref() {
                                 Constant::Int { value, .. } => TupleData::Integer(*value),
                                 Constant::Float(float) => TupleData::Double(match float {
@@ -152,7 +156,7 @@ pub fn translate_block(
                                 .variables
                                 .insert(store_address.clone(), VariableValue::Data(value));
                         }
-                        other => todo!(),
+                        _ => todo!(),
                     },
                     other => panic!("unsupported store: {:?}", other),
                 }
@@ -187,9 +191,9 @@ pub fn translate_block(
                     Constant::Int { value, .. } => *value,
                     _ => return Err(TranslationError::NonIntegerIndex),
                 };
-                let value = env.local.variables.get(&address).ok_or(
-                    TranslationError::CannotResolveLocalVariableValue(address.clone()),
-                )?;
+                let value = env.local.variables.get(&address).ok_or_else(|| {
+                    TranslationError::CannotResolveLocalVariableValue(address.clone())
+                })?;
                 match value {
                     VariableValue::Tuple(_) => {
                         env.local
@@ -197,7 +201,10 @@ pub fn translate_block(
                             .insert(destination, VariableValue::Index(address, index as usize));
                     }
                     other => {
-                        TranslationError::UnexpectedVariableType(address.clone(), other.type_of());
+                        return Err(TranslationError::UnexpectedVariableType(
+                            address.clone(),
+                            other.type_of(),
+                        ));
                     }
                 }
             }
@@ -238,11 +245,11 @@ pub fn translate_block(
                 );
                 result.push(QuilInstruction::Move {
                     destination: ArithmeticOperand::MemoryReference(MemoryReference {
-                        name: destination_label.clone(),
+                        name: destination_label,
                         index: 0,
                     }),
                     source: ArithmeticOperand::MemoryReference(MemoryReference {
-                        name: source_label.clone(),
+                        name: source_label,
                         index: 0,
                     }),
                 })

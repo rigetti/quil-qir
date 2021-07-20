@@ -1,6 +1,4 @@
-use llvm_ir::Name;
 use quil::instruction::{Qubit, ScalarType};
-use std::fmt;
 
 /// A VariableType describes the type of a variable reference in a way that's structured for use by Quil.
 /// Is it a qubit, or is it scalar data - and in either case, is it an array of the same?
@@ -34,17 +32,17 @@ pub enum TupleData {
 impl TupleData {
     pub fn type_of(&self) -> String {
         match self {
-            TupleData::Name(_) => format!("TupleData::Name"),
-            TupleData::Qubit(_) => format!("TupleData::Qubit"),
-            TupleData::Double(_) => format!("TupleData::Double"),
-            TupleData::Integer(_) => format!("TupleData::Integer"),
+            TupleData::Name(_) => "TupleData::Name".to_string(),
+            TupleData::Qubit(_) => "TupleData::Qubit".to_string(),
+            TupleData::Double(_) => "TupleData::Double".to_string(),
+            TupleData::Integer(_) => "TupleData::Integer".to_string(),
         }
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum VariableValue {
-    #[allow(dead_code)]
     Data(TupleData),
     QuilData(ScalarType),
     QuilVariable(VariableType),
@@ -59,15 +57,15 @@ pub enum VariableValue {
 impl VariableValue {
     pub fn type_of(&self) -> String {
         match self {
-            VariableValue::Data(_) => format!("VariableValue::"),
-            VariableValue::QuilData(_) => format!("VariableValue::QuilData"),
-            VariableValue::QuilVariable(_) => format!("VariableValue::QuilVariable"),
-            VariableValue::Qubit(_) => format!("VariableValue::Qubit"),
-            VariableValue::Qubits(_) => format!("VariableValue::Qubits"),
-            VariableValue::Array(_) => format!("VariableValue::Array"),
-            VariableValue::Tuple(_) => format!("VariableValue::Tuple"),
-            VariableValue::Alias(_) => format!("VariableValue::Alias"),
-            VariableValue::Index(_, _) => format!("VariableValue::Index"),
+            VariableValue::Data(_) => "VariableValue::".to_string(),
+            VariableValue::QuilData(_) => "VariableValue::QuilData".to_string(),
+            VariableValue::QuilVariable(_) => "VariableValue::QuilVariable".to_string(),
+            VariableValue::Qubit(_) => "VariableValue::Qubit".to_string(),
+            VariableValue::Qubits(_) => "VariableValue::Qubits".to_string(),
+            VariableValue::Array(_) => "VariableValue::Array".to_string(),
+            VariableValue::Tuple(_) => "VariableValue::Tuple".to_string(),
+            VariableValue::Alias(_) => "VariableValue::Alias".to_string(),
+            VariableValue::Index(_, _) => "VariableValue::Index".to_string(),
         }
     }
 }

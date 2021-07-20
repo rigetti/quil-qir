@@ -20,15 +20,12 @@ use quil::instruction::{
 
 use crate::environment::variable::TupleData;
 use crate::translate::utilities::{
-    name_to_string, prefix_name_for_label, unpack_controlled_gate_call,
-    unpack_controlled_parametric_gate_call,
+    name_to_string, unpack_controlled_gate_call, unpack_controlled_parametric_gate_call,
 };
 use crate::{
     environment::{variable::VariableValue, Environment, GlobalEnvironment},
     translate::{block, errors::TranslationError, utilities, TranslationResult},
 };
-use quil::expression::Expression;
-use quil::instruction::Instruction::Gate;
 
 /// Provide the base-case implementation of certain function invocations.
 pub fn translate_function_call(
@@ -192,9 +189,9 @@ pub fn translate_function_call(
             let resolved_target = match env.resolve_alias(target_name) {
                 None => Qubit::Variable(target_name.clone()),
                 Some(name) => {
-                    let value = env.local.variables.get(&name).ok_or(
-                        TranslationError::CannotResolveLocalVariableValue(name.clone()),
-                    )?;
+                    let value = env.local.variables.get(&name).ok_or_else(|| {
+                        TranslationError::CannotResolveLocalVariableValue(name.clone())
+                    })?;
                     match value {
                         VariableValue::Qubit(q) => q.clone(),
                         _ => todo!(),
@@ -230,9 +227,9 @@ pub fn translate_function_call(
             let qubit_name = env
                 .resolve_alias(&utilities::get_argument_names_from_call(call)[1])
                 .unwrap();
-            let qubit_value = env.local.variables.get(&qubit_name).ok_or(
-                TranslationError::CannotResolveLocalVariableValue(qubit_name.clone()),
-            )?;
+            let qubit_value = env.local.variables.get(&qubit_name).ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableValue(qubit_name.clone())
+            })?;
             let qubit = match qubit_value {
                 VariableValue::Array(qs) => {
                     let q = match &qs[0] {
@@ -442,12 +439,12 @@ pub fn translate_function_call(
                 _ => return Err(TranslationError::NonIntegerIndex),
             };
 
-            let array_name = get_name_from_operand!(array_argument.clone()).ok_or(
+            let array_name = get_name_from_operand!(array_argument.clone()).ok_or_else(|| {
                 TranslationError::UnexpectedOperandType(
                     "LocalOperand".to_string(),
                     array_argument.to_string(),
-                ),
-            )?;
+                )
+            })?;
             env.local.variables.insert(
                 variable_name,
                 VariableValue::Index(array_name, index as usize),

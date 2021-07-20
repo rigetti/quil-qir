@@ -17,9 +17,7 @@ use std::collections::HashMap;
 
 use quil::instruction::Instruction as QuilInstruction;
 
-use super::variable::VariableType;
 use crate::environment::variable::VariableValue;
-use llvm_ir::Name;
 
 /// The GlobalEnvironment describes the program as a whole, outside the scope of a single defined circuit.
 #[derive(Clone, Debug, Default)]

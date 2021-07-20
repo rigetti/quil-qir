@@ -24,7 +24,7 @@ use crate::environment::{variable::VariableValue, Environment};
 use llvm_ir::constant::Float;
 use llvm_ir::function::FunctionAttribute;
 use quil::expression::Expression;
-use quil::instruction::Qubit::Variable;
+
 use quil::real;
 
 /// Unpack the LLVM function parameters into a tuple of Quil parameter names and
@@ -106,13 +106,13 @@ pub fn get_qubits_from_call(
         if let Some(local_definition) = env.local.variables.get(&argument) {
             // The call argument *must* resolve to a known variable, either in the local environment,
             // the enclosing function signature, or the global environment.
-            let resolved_name = env.resolve_alias(&argument).ok_or(
-                TranslationError::CannotResolveLocalVariableName(argument.clone()),
-            )?;
+            let resolved_name = env.resolve_alias(&argument).ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableName(argument.clone())
+            })?;
             // If we can resolve the variable name, then it *must* have a value.
-            let resolved_value = env.local.variables.get(&resolved_name).ok_or(
-                TranslationError::CannotResolveLocalVariableValue(argument.clone()),
-            )?;
+            let resolved_value = env.local.variables.get(&resolved_name).ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableValue(argument.clone())
+            })?;
 
             match resolved_value {
                 VariableValue::Qubit(q) => {
@@ -124,7 +124,7 @@ pub fn get_qubits_from_call(
                         VariableValue::Index(_, i) => {
                             qubits.push(qs[*i as usize].clone());
                         }
-                        other => {
+                        _ => {
                             return Err(TranslationError::UnexpectedVariableType(
                                 argument,
                                 "Index".to_string(),
@@ -134,12 +134,12 @@ pub fn get_qubits_from_call(
                 }
                 VariableValue::Index(array_name, index) => {
                     // The target array *must* exist in the environment
-                    let source_array = env.local.variables.get(array_name).ok_or(
-                        TranslationError::CannotResolveLocalVariableName(array_name.clone()),
-                    )?;
+                    let source_array = env.local.variables.get(array_name).ok_or_else(|| {
+                        TranslationError::CannotResolveLocalVariableName(array_name.clone())
+                    })?;
                     match source_array {
                         VariableValue::Qubits(qs) => qubits.push(qs[*index].clone()),
-                        other => {
+                        _ => {
                             return Err(TranslationError::UnexpectedVariableType(
                                 array_name.clone(),
                                 "Qubits".to_string(),
@@ -148,7 +148,7 @@ pub fn get_qubits_from_call(
                     }
                 }
                 VariableValue::Tuple(_) => todo!(),
-                other => {
+                _ => {
                     return Err(TranslationError::UnexpectedVariableType(
                         argument,
                         "one of Qubit, Qubits, Index, or Tuple".to_string(),
@@ -163,8 +163,8 @@ pub fn get_qubits_from_call(
 
 pub fn get_f64_from_llvm_ir_float(float: &Float) -> TranslationResult<f64> {
     match float {
-        Float::Single(f) => Ok(f.clone() as f64),
-        Float::Double(f) => Ok(f.clone()),
+        Float::Single(f) => Ok(*f as f64),
+        Float::Double(f) => Ok(*f),
         other => Err(TranslationError::UnsupportedFloatType(format!("{}", other))),
     }
 }
@@ -242,14 +242,14 @@ fn get_control_qubits_from_operand(
 ) -> TranslationResult<Vec<String>> {
     if let Operand::LocalOperand { name, .. } = op {
         let name = name_to_string(name);
-        let resolved_name =
-            env.resolve_alias(&name)
-                .ok_or(TranslationError::CannotResolveLocalVariableName(
-                    name.clone(),
-                ))?;
-        let resolved_value = env.local.variables.get(&resolved_name).ok_or(
-            TranslationError::CannotResolveLocalVariableValue(name.clone()),
-        )?;
+        let resolved_name = env
+            .resolve_alias(&name)
+            .ok_or_else(|| TranslationError::CannotResolveLocalVariableName(name.clone()))?;
+        let resolved_value = env
+            .local
+            .variables
+            .get(&resolved_name)
+            .ok_or(TranslationError::CannotResolveLocalVariableValue(name))?;
         return match resolved_value {
             VariableValue::Array(names) => Ok(names
                 .clone()
@@ -282,12 +282,12 @@ fn get_parameters_and_target_qubit_from_operand(
     match op {
         Operand::LocalOperand { name, .. } => {
             let name = name_to_string(name);
-            let resolved_name = env.resolve_alias(&name).ok_or(
-                TranslationError::CannotResolveLocalVariableName(name.clone()),
-            )?;
-            let resolved_value = env.local.variables.get(&resolved_name).ok_or(
-                TranslationError::CannotResolveLocalVariableValue(resolved_name.clone()),
-            )?;
+            let resolved_name = env
+                .resolve_alias(&name)
+                .ok_or_else(|| TranslationError::CannotResolveLocalVariableName(name.clone()))?;
+            let resolved_value = env.local.variables.get(&resolved_name).ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableValue(resolved_name.clone())
+            })?;
             match resolved_value {
                 VariableValue::Tuple(names) => Ok(names.clone()),
                 _ => Err(TranslationError::UnexpectedVariableType(
@@ -310,12 +310,12 @@ fn resolve_controls_to_qubits(
     controls
         .iter()
         .map(|name| {
-            let resolved_name = env.resolve_alias(&name).ok_or(
-                TranslationError::CannotResolveLocalVariableName(name.clone()),
-            )?;
-            let resolved_value = env.local.variables.get(&resolved_name).ok_or(
-                TranslationError::CannotResolveLocalVariableValue(resolved_name.clone()),
-            )?;
+            let resolved_name = env
+                .resolve_alias(&name)
+                .ok_or_else(|| TranslationError::CannotResolveLocalVariableName(name.clone()))?;
+            let resolved_value = env.local.variables.get(&resolved_name).ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableValue(resolved_name.clone())
+            })?;
             match resolved_value {
                 VariableValue::Qubit(q) => Ok(q.clone()),
                 other => Err(TranslationError::UnexpectedVariableType(
@@ -359,9 +359,9 @@ pub fn unpack_controlled_parametric_gate_call(
     let mut qubits: Vec<Qubit> = resolve_controls_to_qubits(control_names, env)?;
     let modifiers = vec![GateModifier::Controlled; qubits.len()];
     let parameters = get_expression_from_parameters_tuple(&param_and_target_names[0])?;
-    let target = get_qubit_from_parameters_tuple(&param_and_target_names[1]).ok_or(
-        TranslationError::UnexpectedVariableType("target".to_string(), "Qubit".to_string()),
-    )?;
+    let target = get_qubit_from_parameters_tuple(&param_and_target_names[1]).ok_or_else(|| {
+        TranslationError::UnexpectedVariableType("target".to_string(), "Qubit".to_string())
+    })?;
 
     qubits.push(target);
 
@@ -372,12 +372,12 @@ fn get_qubit_from_operand(op: &Operand, env: &Environment) -> TranslationResult<
     match op {
         Operand::LocalOperand { name, .. } => {
             let name = name_to_string(name);
-            let resolved_name = env.resolve_alias(&name).ok_or(
-                TranslationError::CannotResolveLocalVariableName(name.clone()),
-            )?;
-            let resolved_value = env.local.variables.get(&resolved_name).ok_or(
-                TranslationError::CannotResolveLocalVariableValue(resolved_name.clone()),
-            )?;
+            let resolved_name = env
+                .resolve_alias(&name)
+                .ok_or_else(|| TranslationError::CannotResolveLocalVariableName(name.clone()))?;
+            let resolved_value = env.local.variables.get(&resolved_name).ok_or_else(|| {
+                TranslationError::CannotResolveLocalVariableValue(resolved_name.clone())
+            })?;
             match resolved_value {
                 VariableValue::Qubit(name) => Ok(name.clone()),
                 other => Err(TranslationError::UnexpectedVariableType(
@@ -404,6 +404,6 @@ pub fn unpack_controlled_gate_call(
     let mut qubits = resolve_controls_to_qubits(control_names, env)?;
     let modifiers = vec![GateModifier::Controlled; qubits.len()];
     let target = get_qubit_from_operand(&call.arguments[1].0, env)?;
-    qubits.push(target.clone());
+    qubits.push(target);
     Ok((modifiers, qubits))
 }
