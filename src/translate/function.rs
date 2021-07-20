@@ -222,6 +222,11 @@ pub fn translate_function_call(
                     .ok_or(TranslationError::MissingDestinationForCall)?,
             );
             let target_variable = utilities::prefix_name_for_label(&function.name, &target_name);
+            // Store the target as a global, which has the effect of producing a corresponding DECLARE
+            env.global.variables.insert(
+                target_variable.clone(),
+                VariableValue::Alias("measurement".to_string()),
+            );
             Ok(vec![QuilInstruction::Measurement {
                 qubit: qubits[0].clone(),
                 target: Some(MemoryReference {
