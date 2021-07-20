@@ -153,9 +153,19 @@ impl<'a> Environment<'a> {
                             }
                             VariableValue::Tuple(target) => match resolved_value.unwrap() {
                                 VariableValue::Qubit(q) => target.push(TupleData::Qubit(q)),
-                                other => panic!("how to {:?}", other),
+                                _ => {
+                                    return Err(TranslationError::UnexpectedVariableType(
+                                        target_array_name.clone(),
+                                        "Qubit".to_string(),
+                                    ))
+                                }
                             },
-                            other => panic!("don't know what to do with {:?}", other),
+                            _ => {
+                                return Err(TranslationError::UnexpectedVariableType(
+                                    target_array_name.clone(),
+                                    "Array or Tuple".to_string(),
+                                ))
+                            }
                         }
                     }
                 }
@@ -167,14 +177,29 @@ impl<'a> Environment<'a> {
                         Constant::Float(float) => TupleData::Double(match float {
                             Float::Single(s) => *s as f64,
                             Float::Double(d) => *d,
-                            other => panic!("unsupported float type {:?}", other),
+                            other => {
+                                return Err(TranslationError::UnsupportedFloatType(format!(
+                                    "{}",
+                                    other
+                                )))
+                            }
                         }),
-                        other => panic!("expected Int or Float, got {:?}", other),
+                        other => {
+                            return Err(TranslationError::UnexpectedConstantType(
+                                "Int or Float".to_string(),
+                                format!("{}", other),
+                            ))
+                        }
                     };
                     match self.local.variables.get_mut(&target_name).unwrap() {
                         VariableValue::Tuple(tuple) => tuple.push(value),
                         VariableValue::Array(array) => array.push(value),
-                        other => panic!("don't know how to store into {:?}", other),
+                        _ => {
+                            return Err(TranslationError::UnexpectedVariableType(
+                                target_name.clone(),
+                                "Tuple or Array".to_string(),
+                            ))
+                        }
                     }
                 }
                 VariableValue::Data(_) => {
@@ -183,9 +208,19 @@ impl<'a> Environment<'a> {
                         Constant::Float(float) => TupleData::Double(match float {
                             Float::Single(s) => *s as f64,
                             Float::Double(d) => *d,
-                            other => panic!("unsupported float type {:?}", other),
+                            other => {
+                                return Err(TranslationError::UnsupportedFloatType(format!(
+                                    "{}",
+                                    other
+                                )))
+                            }
                         }),
-                        other => panic!("expected Int or Float, got {:?}", other),
+                        other => {
+                            return Err(TranslationError::UnexpectedConstantType(
+                                "Int or Float".to_string(),
+                                format!("{}", other),
+                            ))
+                        }
                     };
                     self.local
                         .variables
@@ -193,7 +228,12 @@ impl<'a> Environment<'a> {
                 }
                 _ => todo!(),
             },
-            other => panic!("unsupported store: {:?}", other),
+            other => {
+                return Err(TranslationError::UnexpectedOperandType(
+                    "ConstantOperand or LocalOperand".to_string(),
+                    format!("{}", other),
+                ))
+            }
         }
 
         Ok(())

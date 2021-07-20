@@ -165,13 +165,23 @@ pub fn translate_function_call(
                 VariableValue::Array(controls) => {
                     let control = match &controls[0] {
                         TupleData::Name(name) => name,
-                        other => panic!("expected a Name for control, got {:?}", other),
+                        _ => {
+                            return Err(TranslationError::UnexpectedVariableType(
+                                name,
+                                "Name".to_string(),
+                            ))
+                        }
                     };
                     match env.resolve_alias(control) {
                         None => Qubit::Variable(control.clone()),
                         Some(name) => match env.local.variables.get(&name).unwrap() {
                             VariableValue::Qubit(q) => q.clone(),
-                            _ => todo!(),
+                            _ => {
+                                return Err(TranslationError::UnexpectedVariableType(
+                                    name,
+                                    "Qubit".to_string(),
+                                ))
+                            }
                         },
                     }
                 }
@@ -231,7 +241,12 @@ pub fn translate_function_call(
                 VariableValue::Array(qs) => {
                     let q = match &qs[0] {
                         TupleData::Name(name) => name,
-                        other => panic!("expected a Name, got {:?}", other),
+                        _ => {
+                            return Err(TranslationError::UnexpectedVariableType(
+                                qubit_name,
+                                "Name".to_string(),
+                            ))
+                        }
                     };
                     match env.resolve_alias(q) {
                         None => Qubit::Variable(q.clone()),
