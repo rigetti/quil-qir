@@ -1,5 +1,5 @@
 {
-  "name": "quil-rust-semantic-release",
+  "name": "quil-qir-semantic-release",
   "version": "1.0.0",
   "description": "Encapsulate dependencies needed to use semantic-release",
   "dependencies": {
@@ -34,6 +34,6 @@
         "message": "Release v${nextRelease.version} [skip ci]"
       }]
     ],
-    "repositoryUrl": "ssh://git@github.com/rigetti/quil-rust.git"
+    "repositoryUrl": "ssh://git@github.com/rigetti/quil-qir.git"
   }
 }
