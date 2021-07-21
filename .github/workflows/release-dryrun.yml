@@ -1,14 +1,10 @@
 name: Release
 
-on:
-  push:
-    branches:
-      - main
-      - rc
+on: [push, pull_request]
 
 jobs:
   release:
-    name: Semantic Release
+    name: Semantic Release dry run
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -20,7 +16,7 @@ jobs:
           node-version: 12
       - name: Install Semantic Release Dependencies
         run: npm install
-      - name: Release
+      - name: Release dry run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        run: npx semantic-release --dry-run --branches "${GITHUB_REF##*/}"
