@@ -15,11 +15,15 @@
  **/
 use log;
 
-use llvm_ir::{BasicBlock, Function, Instruction as LLVMInstruction, Module, Operand};
+use llvm_ir::{
+    BasicBlock, Constant, Function, Instruction as LLVMInstruction, Module, Operand, Type,
+};
 use quil::instruction::{
     ArithmeticOperand, Instruction as QuilInstruction, MemoryReference, ScalarType,
 };
 
+use crate::environment::variable::TupleData;
+use crate::translate::utilities::name_to_string;
 use crate::{
     environment::{
         variable::{VariableDataType, VariableType, VariableValue},
@@ -36,14 +40,31 @@ pub fn translate_block(
     function: &Function,
     block: &BasicBlock,
 ) -> TranslationResult<Vec<QuilInstruction>> {
-    let mut result = vec![QuilInstruction::Label(utilities::name_to_label(
+    let mut result = vec![QuilInstruction::Label(utilities::prefix_name_for_label(
         &function.name,
-        &block.name,
+        &name_to_string(&block.name),
     ))];
 
     for instruction in &block.instrs {
         match instruction {
-            LLVMInstruction::BitCast(cast) => env.local.store_alias(&cast.dest, &cast.operand),
+            // TODO These might be better placed in environment/mod.rs
+            LLVMInstruction::Alloca(alloc) => {
+                let dest = name_to_string(&alloc.dest);
+                let value = match alloc.allocated_type.as_ref() {
+                    Type::IntegerType { .. } => TupleData::Integer(0),
+                    other => {
+                        return Err(TranslationError::UnsupportedAllocationType(
+                            "Integer".to_string(),
+                            format!("{}", other),
+                        ))
+                    }
+                };
+                env.local
+                    .variables
+                    .insert(dest.clone(), VariableValue::Data(value));
+            }
+
+            LLVMInstruction::BitCast(cast) => env.bitcast(&cast)?,
 
             LLVMInstruction::Call(call) => {
                 result.extend(function::translate_function_call(
@@ -52,20 +73,52 @@ pub fn translate_block(
             }
 
             LLVMInstruction::Store(store) => {
-                let variable_name = match &store.address {
-                    Operand::LocalOperand { name, .. } => name,
-                    _ => return Err(TranslationError::ExpectedLocalOperandForCall),
-                };
+                env.store(store)?;
+            }
 
-                if let Operand::LocalOperand { name, ty } = &store.value {
-                    if is_qubit_type!(ty) {
-                        if let Some(target_name) = env.local.resolve_alias(variable_name) {
-                            if let Some(VariableValue::Array(target_array)) =
-                                env.local.variables.get_mut(&target_name)
-                            {
-                                target_array.push(name.clone());
-                            }
-                        }
+            LLVMInstruction::Load(load) => {
+                env.load(load);
+            }
+
+            LLVMInstruction::GetElementPtr(getptr) => {
+                let address = match &getptr.address {
+                    Operand::LocalOperand { name, .. } => {
+                        let name = name_to_string(name);
+                        env.resolve_alias(&name)
+                            .ok_or(TranslationError::CannotResolveLocalVariableName(name))?
+                    }
+                    other => {
+                        return Err(TranslationError::UnexpectedOperandType(
+                            "LocalOperand".to_string(),
+                            format!("{}", other),
+                        ))
+                    }
+                };
+                let destination = name_to_string(&getptr.dest);
+                let last_constant = getptr
+                    .indices
+                    .last()
+                    .unwrap()
+                    .as_constant()
+                    .ok_or(TranslationError::ExpectedConstantOperand)?;
+                let index = match last_constant {
+                    Constant::Int { value, .. } => *value,
+                    _ => return Err(TranslationError::NonIntegerIndex),
+                };
+                let value = env.local.variables.get(&address).ok_or_else(|| {
+                    TranslationError::CannotResolveLocalVariableValue(address.clone())
+                })?;
+                match value {
+                    VariableValue::Tuple(_) => {
+                        env.local
+                            .variables
+                            .insert(destination, VariableValue::Index(address, index as usize));
+                    }
+                    other => {
+                        return Err(TranslationError::UnexpectedVariableType(
+                            address.clone(),
+                            other.type_of(),
+                        ));
                     }
                 }
             }
@@ -88,21 +141,21 @@ pub fn translate_block(
                     None => return Err(TranslationError::MissingOperandName),
                 };
                 let destination_label = format!("{}__return_value", function.name);
-                let source_label = utilities::name_to_label(&function.name, &name);
+                let source_label = utilities::prefix_name_for_label(&function.name, &name);
                 env.global.variables.insert(
                     source_label.clone(), // TODO: determine correct type
-                    VariableType {
+                    VariableValue::QuilVariable(VariableType {
                         is_array: false,
                         data_type: VariableDataType::Scalar(ScalarType::Integer),
-                    },
+                    }),
                 );
                 env.global.variables.insert(
                     destination_label.clone(),
                     // TODO: determine correct type
-                    VariableType {
+                    VariableValue::QuilVariable(VariableType {
                         is_array: false,
                         data_type: VariableDataType::Scalar(ScalarType::Integer),
-                    },
+                    }),
                 );
                 result.push(QuilInstruction::Move {
                     destination: ArithmeticOperand::MemoryReference(MemoryReference {
@@ -118,7 +171,8 @@ pub fn translate_block(
         }
 
         llvm_ir::Terminator::Br(branch) => {
-            let label = utilities::name_to_label(&function.name, &branch.dest);
+            let label =
+                utilities::prefix_name_for_label(&function.name, &name_to_string(&branch.dest));
             result.push(QuilInstruction::Jump { target: label });
         }
 

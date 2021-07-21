@@ -472,8 +472,8 @@ dependencies = [
 
 [[package]]
 name = "quil"
-version = "0.1.0"
-source = "git+https://github.com/rigetti/quil-rust.git?tag=v0.1.0#6451deac0aa65c44301513643df6fc0d1ede0916"
+version = "0.2.3"
+source = "git+https://github.com/rigetti/quil-rust.git?tag=v0.2.3#78cff3d2c5ce1b4bccc69aa49e6fa2c138ec7622"
 dependencies = [
  "indexmap",
  "lexical",
@@ -490,6 +490,7 @@ dependencies = [
  "either",
  "llvm-ir",
  "log",
+ "num-complex",
  "pyo3",
  "quil",
  "structopt",

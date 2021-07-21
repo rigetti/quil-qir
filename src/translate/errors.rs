@@ -25,12 +25,20 @@ pub enum TranslationError {
     UnsupportedLLVMInstruction(String),
     #[allow(dead_code)]
     UnsupportedLLVMTerminator(String),
-    UnexpectedVariableType(String),
+    UnexpectedVariableType(String, String),
     MissingDestinationForCall,
     MissingOperandName,
     MissingFunctionDefinition(String),
     ExpectedLocalOperandForCall,
     ExpectedConstantOperand,
+    CannotResolveLocalVariableName(String),
+    CannotResolveLocalVariableValue(String),
+    UnsupportedParameterType(String, String),
+    UnsupportedFloatType(String),
+    UnexpectedConstantType(String, String),
+    UnexpectedOperandType(String, String),
+    NonIntegerIndex,
+    UnsupportedAllocationType(String, String),
 }
 
 impl fmt::Display for TranslationError {
@@ -39,36 +47,62 @@ impl fmt::Display for TranslationError {
         match self {
             UndefinedEntryPoint(entrypoint) => write!(
                 f,
-                "could not find entry point named '{}' in module",
+                "Could not find entry point named '{}' in module",
                 entrypoint
             ),
             NoEntryPoint => {
-                write!(f, "could not find entry point in module")
+                write!(f, "Could not find entry point in module")
             }
             UnsupportedFunctionCall(s) => {
-                write!(f, "unsupported function call '{}'", s)
+                write!(f, "Unsupported function call '{}'", s)
             }
-            UnexpectedVariableType(t) => {
-                write!(f, "unexpected variable type '{}'", t)
+            UnexpectedVariableType(name, expected) => {
+                write!(f, "Expected type {} for variable {}", name, expected)
             }
             MissingDestinationForCall => {
-                write!(f, "missing destination for function call")
+                write!(f, "Missing destination for function call")
             }
             ExpectedLocalOperandForCall => {
-                write!(f, "expected a local operand for function call")
+                write!(f, "Expected a local operand for function call")
             }
-            MissingOperandName => write!(f, "missing operand name"),
+            MissingOperandName => write!(f, "Missing operand name"),
             UnsupportedLLVMInstruction(instr) => {
-                write!(f, "unsupported LLVM instruction '{}'", instr)
+                write!(f, "Unsupported LLVM instruction '{}'", instr)
             }
             UnsupportedLLVMTerminator(term) => {
-                write!(f, "unsupported LLVM terminator '{}'", term)
+                write!(f, "Unsupported LLVM terminator '{}'", term)
             }
             MissingFunctionDefinition(s) => {
-                write!(f, "missing definition for function '{}'", s)
+                write!(f, "Missing definition for function '{}'", s)
             }
-            ExpectedConstantOperand => write!(f, "expected a constant operand"),
-            InvalidLLVMByteCode => write!(f, "could not parse LLVM BC file"),
+            ExpectedConstantOperand => write!(f, "Expected a constant operand"),
+            InvalidLLVMByteCode => write!(f, "Could not parse LLVM BC file"),
+            CannotResolveLocalVariableName(name) => {
+                write!(f, "Could not resolve local variable {}", name)
+            }
+            CannotResolveLocalVariableValue(name) => {
+                write!(f, "Could not resolve local variable {} to a value", name)
+            }
+            UnsupportedParameterType(name, actual) => {
+                write!(f, "Parameter {} has unsupported type {}", name, actual)
+            }
+            UnsupportedFloatType(actual) => {
+                write!(f, "Cannot convert the LLVM float {} to f64", actual)
+            }
+            UnexpectedConstantType(expected, actual) => {
+                write!(f, "Expected {} for constant, got {}", expected, actual)
+            }
+            UnexpectedOperandType(expected, actual) => {
+                write!(f, "Expected operand of type {}, got {}", expected, actual)
+            }
+            NonIntegerIndex => write!(f, "Cannot index an array with a non-integer value"),
+            UnsupportedAllocationType(expected, actual) => {
+                write!(
+                    f,
+                    "Expected an allocation for type {}, got {}",
+                    expected, actual
+                )
+            }
         }
     }
 }

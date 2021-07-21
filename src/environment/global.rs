@@ -17,14 +17,14 @@ use std::collections::HashMap;
 
 use quil::instruction::Instruction as QuilInstruction;
 
-use super::variable::VariableType;
+use crate::environment::variable::VariableValue;
 
 /// The GlobalEnvironment describes the program as a whole, outside the scope of a single defined circuit.
 #[derive(Clone, Debug, Default)]
 pub struct GlobalEnvironment {
     /// Because all parameters in Quil are themselves global to the program, we use this map to ensure
     /// that only a single datatype is written to a variable of a given name in any constituent circuit.
-    pub variables: HashMap<String, VariableType>,
+    pub variables: HashMap<String, VariableValue>,
 
     /// We accumulate circuit definitions here as they are constructed in a search through the LLVM call graph.
     pub circuit_definitions: HashMap<String, QuilInstruction>,

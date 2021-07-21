@@ -22,7 +22,7 @@ pub mod utilities;
 
 pub use module::translate_module;
 
-type TranslationResult<T> = std::result::Result<T, errors::TranslationError>;
+pub type TranslationResult<T> = std::result::Result<T, errors::TranslationError>;
 
 #[cfg(test)]
 mod tests {
@@ -39,7 +39,6 @@ mod tests {
             .expect("failed to read test data directory")
             .for_each(|f| {
                 let bc_file_path = f.unwrap().path();
-                dbg!(&bc_file_path);
                 let module = llvm_ir::Module::from_bc_path(bc_file_path.clone()).unwrap();
                 let entrypoint = module_entrypoint(&module).unwrap();
 

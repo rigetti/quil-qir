@@ -17,7 +17,7 @@
 macro_rules! get_name_from_operand {
     ($operand:expr) => {{
         match $operand {
-            llvm_ir::Operand::LocalOperand { name, .. } => Some(name.clone()),
+            llvm_ir::Operand::LocalOperand { name, .. } => Some(name_to_string(&name)),
             _ => None,
         }
     }};
